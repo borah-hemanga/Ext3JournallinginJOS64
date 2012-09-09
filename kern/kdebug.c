@@ -106,7 +106,7 @@ debuginfo_rip(uintptr_t addr, struct Ripdebuginfo *info)
 {
 	const struct Stab *stabs, *stab_end;
 	const char *stabstr, *stabstr_end;
-	int lfile, rfile, lfun, rfun, lline, rline;
+	int lfile, rfile, lfun, rfun, lline, rline,l_line,r_line;
 
 	// Initialize *info
 	info->rip_file = "<unknown>";
@@ -179,7 +179,13 @@ debuginfo_rip(uintptr_t addr, struct Ripdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
-
+	l_line = lline;
+	r_line = rline;
+	stab_binsearch(stabs,&l_line,&r_line,N_SLINE,addr);
+ 	if(l_line<=r_line)
+	{
+		info->rip_line = stabs[r_line].n_desc;
+	}
 
 	// Search backwards from the line number for the relevant filename
 	// stab.

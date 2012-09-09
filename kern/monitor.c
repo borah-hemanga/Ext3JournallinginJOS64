@@ -24,6 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
+	{ "backtrace", "Display the rbp, rip and arguments ", mon_backtrace }
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -55,10 +56,47 @@ mon_kerninfo(int argc, char **argv, struct Trapframe *tf)
 	return 0;
 }
 
-int
-mon_backtrace(int argc, char **argv, struct Trapframe *tf)
+
+/************************************************************/
+/********************mon_backtrace***************************/
+/*     int mon_backtrace(int,char **,struct Trapframe *)    */
+/************************************************************/
+/*         This function prints the rbp, rip adn arguments
+           of the calling function to the end of stack
+	   then it also prints the file names, the
+	   return addresses and function names calling it
+	   and the offset of the return address of the calling
+	   functions
+*************************************************************/
+int mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
-	// Your code here.
+	uint64_t *a = (uint64_t *)read_rbp(); 		//Get the value of rbp into *a
+	uint64_t x = *a;				// Variable to keep track of the end of stack
+	
+	do{
+		
+		x = *a;
+		
+		//Print values as per the given format --- rbp, then rip, then argument values
+		cprintf("rbp %016x rip %016x args %016x %016x %016x %016x\n",a,*(a+1),*((int *)a - 1),*((int*)a - 2), *((int *)a -3), *((int *)a -4));
+		uintptr_t ripVal = (uintptr_t) *(a+1);
+		struct Ripdebuginfo info;
+		int status = debuginfo_rip(ripVal,&info);
+		
+		if(status == 0)                   // Cannot handle user address, and returns negative for call from userspace
+		{
+		
+			uintptr_t offset = (uintptr_t)ripVal - info.rip_fn_addr;    		//Finds the offset of the return address from the start of function
+		
+			cprintf("../%s",info.rip_file);			//Prints file location
+			cprintf(":%d:",info.rip_line);		//Prints line number
+			cprintf(" %.*s",info.rip_fn_namelen,(char *)info.rip_fn_name);		//Prints function name
+			cprintf("+%016x\n",offset);			//Prints offset of the return address from the function start address
+		}
+	
+		a = (uint64_t *)*a; 		//Goto the upper function rbp
+	}while(x>=0xf010a000);			//Repeat till end of stack
+	
 	return 0;
 }
 
